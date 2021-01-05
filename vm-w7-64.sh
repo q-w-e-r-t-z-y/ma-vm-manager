@@ -5,7 +5,7 @@ CWD=$(dirname $0)
 # VM configuration
 # ------------------------------
 
-VM_NAME="W7-64"
+VM_NAME="W764B"
 VM_SNAPSHOT="Baseline"
 
 

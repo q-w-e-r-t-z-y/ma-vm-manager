@@ -12,7 +12,7 @@ function vm_dump () {
     local value_name=$2
     local value_location=$3
     case $value_action in
-        "--dump") 
+        "--dump-v2") 
             if [[ "$#" -gt 2 ]]; then
                 if VBoxManage showvminfo $VM_NAME --machinereadable | grep '^VMState="poweroff"$' > /dev/null ; then
                     printf "*** ERROR: - $VM_NAME is not running, exiting...\n"
@@ -27,8 +27,24 @@ function vm_dump () {
                     off=0x$(echo "obase=16;ibase=16;`objdump -h "$file_elf" | egrep -w load1 | awk '{print $6}' | tr /a-z/ /A-Z/`" | bc)
                     printf "Converting from ELF64 to RAW: Offset=$off, Size=$size\n"
                     head -c $(($size+$off)) "$file_elf"| tail -c +$(($off+1)) > "$file_raw"
-                    printf "$file_raw is ready...\n"
                     rm "$file_elf"
+                    printf "Volatility 2 dump $file_raw is ready...\n"
+                fi
+            else
+                printf "*** ERROR: - Missing parameter, exiting...\n" 
+            fi
+        ;;
+        "--dump-v3") 
+            if [[ "$#" -gt 2 ]]; then
+                if VBoxManage showvminfo $VM_NAME --machinereadable | grep '^VMState="poweroff"$' > /dev/null ; then
+                    printf "*** ERROR: - $VM_NAME is not running, exiting...\n"
+                else
+                    file="$value_location/$value_name/$NOW-$value_name-VBOX-MEM-DUMP"
+                    file_elf="$file.elf"
+                    printf "Dumping \"$VM_NAME\" memory contents into \"$file_elf\"...\n"
+                    mkdir -p "$value_location/$value_name"
+                    VBoxManage debugvm $VM_NAME dumpvmcore --filename "$file_elf"
+                    printf "Volatility 3 dump $file_elf is ready...\n"
                 fi
             else
                 printf "*** ERROR: - Missing parameter, exiting...\n" 
@@ -94,7 +110,10 @@ function vm_snapshot () {
 
 function main () {
     case $action in
-        "--dump")
+        "--dump-v2")
+            vm_dump $action $parameters
+        ;;
+        "--dump-v3")
             vm_dump $action $parameters
         ;;
         "--start" | "--stop")
@@ -108,11 +127,12 @@ function main () {
             printf "$0 - Option \"$action\" was not recognized...\n"
             printf "\n  Virtual Machine: $VM_NAME\n"
             printf "\n  * Main operations:\n"
-            printf "    --start                  : Start VM\n"
-            printf "    --stop                   : Shutdown VM\n"
-            printf "    --dump [NAME] [LOCATION] : Dump VM memory as file [NAME] into [LOCATION]\n"
+            printf "    --start                     : Start VM\n"
+            printf "    --stop                      : Shutdown VM\n"
+            printf "    --dump-v2 [NAME] [LOCATION] : Dump VM memory as Volatility 2 compatible file [NAME] into [LOCATION]\n"
+            printf "    --dump-v3 [NAME] [LOCATION] : Dump VM memory as Volatility 3 compatible file [NAME] into [LOCATION]\n"
             printf "\n  * Snapshot operations:\n"
-            printf "    --baseline               : Revert \"$VM_NAME\" to snapshot \"$VM_SNAPSHOT\"\n"
+            printf "    --baseline                  : Revert \"$VM_NAME\" to snapshot \"$VM_SNAPSHOT\"\n"
         ;;
     esac
 }
